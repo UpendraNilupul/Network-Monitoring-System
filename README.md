@@ -16,6 +16,8 @@ Built using Python (`pysnmp`), InfluxDB Time-Series Database, and Grafana, this 
 ## 📸 Live Dashboard Preview
 
 ![Grafana Dashboard](<screenshots/All No shutdown.png>)
+<screenshots/All No shutdown.png>
+<screenshots/All No shutdown.png>
 
 ---
 
