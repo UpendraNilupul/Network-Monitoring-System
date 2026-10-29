@@ -15,9 +15,16 @@ Built using Python (`pysnmp`), InfluxDB Time-Series Database, and Grafana, this 
 
 ## 📸 Live Dashboard Preview
 
-![Grafana Dashboard](<screenshots/All No shutdown.png>)
-<screenshots/All No shutdown.png>
-<screenshots/All No shutdown.png>
+## 📸 Live Dashboard Preview
+
+### 1. Normal State (All Nodes UP & Active)
+![All Nodes UP](<screenshots/All No shutdown.png>)
+
+### 2. Single Node Failure Simulation (R1 Down)
+![R1 Down State](<screenshots/R1 Down.png>)
+
+### 3. Total Network Failure Simulation (All Nodes Down)
+![All Nodes Down State](<screenshots/shutdown all.png>)
 
 ---
 
