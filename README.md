@@ -1,77 +1,66 @@
 # 🌐 Real-Time Cisco Network Telemetry & Monitoring System
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
-![InfluxDB](https://img.shields.io/badge/InfluxDB-v2.x-purple?style=for-the-badge&logo=influxdb&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker_Compose-v2-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python&logoColor=white)
+![InfluxDB](https://img.shields.io/badge/InfluxDB-v2.7-purple?style=for-the-badge&logo=influxdb&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-Live_Dashboard-orange?style=for-the-badge&logo=grafana&logoColor=white)
-![Cisco](https://img.shields.io/badge/Cisco-GNS3_Emulation-049fd9?style=for-the-badge&logo=cisco&logoColor=white)
+![Cisco](https://img.shields.io/badge/Cisco-GNS3_C7200-049fd9?style=for-the-badge&logo=cisco&logoColor=white)
 ![SNMP](https://img.shields.io/badge/Protocol-SNMPv2c-brightgreen?style=for-the-badge)
 
-## 📖 Project Overview
-An enterprise-grade Network Management System (NMS) designed to poll, process, store, and visualize real-time performance and telemetry data across a fleet of Cisco routers. 
+## 📖 Overview
+An enterprise-grade, containerized Network Telemetry and Observability pipeline designed to extract, process, store, and visualize real-time performance metrics across a fleet of Cisco enterprise routers.
 
-Built using Python (`pysnmp`), InfluxDB Time-Series Database, and Grafana, this project delivers sub-second network observability, real-time throughput calculations, interface state monitoring, and automated offline fault-handling logic.
+The entire stack—**InfluxDB Time-Series Database**, **Grafana Analytics Engine**, and the **Custom Python SNMP Collector Daemon**—is orchestrated via **Docker Compose**, enabling complete, isolated, one-command deployment.
 
 ---
 
 ## 📸 Live Dashboard Preview
 
-## 📸 Live Dashboard Preview
-
-### 1. Normal State (All Nodes UP & Active)
-![All Nodes UP](<screenshots/All No shutdown.png>)
-
-### 2. Single Node Failure Simulation (R1 Down)
-![R1 Down State](<screenshots/R1 Down.png>)
-
-### 3. Total Network Failure Simulation (All Nodes Down)
-![All Nodes Down State](<screenshots/shutdown all.png>)
+| Normal State (All Nodes UP) | Single Node Outage (R1 DOWN) | Full Network Outage (All DOWN) |
+| :---: | :---: | :---: |
+| ![All Nodes UP](<screenshots/All No shutdown.png>) | ![R1 Down](<screenshots/R1 Down.png>) | ![All Down](<screenshots/shutdown all.png>) |
 
 ---
 
-## ✨ Key Features
+## ✨ Key Capabilities
 
-- **Automated SNMP Telemetry Pipeline:** Continuous background polling (5-second cycle) via SNMPv2c across all active network nodes.
-- **Dynamic Bandwidth Tracking (Throughput in Mbps):** Polls raw interface Inbound/Outbound Octets (`ifInOctets` / `ifOutOctets`) and performs dynamic rate calculation using time deltas ($\Delta t$):
+- **Turnkey Containerized Deployment:** Run the complete observability infrastructure (InfluxDB, Grafana, and Collector) with `docker compose up -d`.
+- **Dynamic Bandwidth Tracking (Mbps):** Polling 32-bit interface counters (`ifInOctets` / `ifOutOctets`) and calculating dynamic rate-of-change across time deltas ($\Delta t$):
   $$\text{Throughput (Mbps)} = \frac{(\text{Current Octets} - \text{Previous Octets}) \times 8}{\Delta t \times 10^6}$$
-- **Fault-Tolerant Availability State:** Implements continuous heartbeat logging (`1 = UP`, `2 = DOWN`). Even when a node is unreachable or powered down, the pipeline writes fallback metrics ($0\%$ CPU/RAM and `DOWN` state) to prevent panels from disappearing from the dashboard.
-- **Hardware Utilization Metrics:** Direct retrieval and transformation of Cisco enterprise MIBs for CPU load and memory usage (Used vs. Free memory calculation).
-- **Time-Series Optimization:** InfluxDB 2.x bucket structure with tag-based indexing (`router_ip`) for rapid Flux query execution.
-- **NOC-Ready Grafana Visualization:**
-  - **Router CPU Usage:** Color-coded multi-bar gauge panels with percentage thresholds.
-  - **Router RAM Utilization:** Dynamic gauge dials representing allocated memory.
-  - **Network Traffic (In/Out):** Dedicated time-series graphs for Download and Upload traffic rates.
-  - **Router Availability Status:** Real-time health stat cards mapped with instant Green/Red visual alerts.
+- **Fault-Tolerant State Persistence:** Continuous node status heartbeats (`1 = UP`, `2 = DOWN`). In the event of network disruption or router shutdown, fallback records ($0\%$ CPU/RAM, status `2`) are written to InfluxDB to retain historic metrics and prevent panel drops.
+- **Hardware Utilization Monitoring:** Direct retrieval of Cisco enterprise MIBs to compute real-time CPU utilization and RAM allocation percentage (Used vs. Free memory pool).
+- **Decoupled Credential Management:** All sensitive tokens, organizations, and database buckets are managed via environment variables (`.env`).
 
 ---
 
-## 🏗️ Architecture & Telemetry Pipeline
+## 🏗️ System Architecture & Data Pipeline
 
 ```text
- ┌─────────────────────────────────────────────────────────────────┐
- │               Cisco Enterprise Routers (GNS3)                   │
- │                [R1: .2]  [R2: .3]  [R3: .4]  [R4: .5]          │
- └───────────────────────────────┬─────────────────────────────────┘
-                                 │
-                                 │ SNMP GET Requests (UDP 161)
-                                 │ [CPU, RAM, In/Out Octets, Port State]
-                                 ▼
- ┌─────────────────────────────────────────────────────────────────┐
- │                   Python Data Collector Engine                  │
- │                      (get_router_data.py)                       │
- │  - Delta Byte Calculation -> Mbps                               │
- │  - Failure handling: logs DOWN (2) on timeout                   │
- └───────────────────────────────┬─────────────────────────────────┘
-                                 │
-                                 │ HTTP Line Protocol / Influx Client API
-                                 ▼
- ┌─────────────────────────────────────────────────────────────────┐
- │                InfluxDB 2.x Time-Series Database                │
- │                     (Bucket: RouterMetrics)                     │
- └───────────────────────────────┬─────────────────────────────────┘
-                                 │
-                                 │ Flux Queries (Port 8086)
-                                 ▼
- ┌─────────────────────────────────────────────────────────────────┐
- │                 Grafana NOC Real-Time Dashboard                 │
- │             [CPU Bars] [RAM Gauges] [Traffic] [Node Health]     │
- └─────────────────────────────────────────────────────────────────┘
+ ┌─────────────────────────────────────────────────────────────┐
+ │               Cisco Enterprise Routers (GNS3)               │
+ │           [R1: .2]   [R2: .3]   [R3: .4]   [R4: .5]         │
+ └──────────────────────────────┬──────────────────────────────┘
+                                │
+                                │ SNMP GET (UDP 161)
+                                ▼
+ ┌─────────────────────────────────────────────────────────────┐
+ │                      DOCKER COMPOSE                         │
+ │                                                             │
+ │  ┌───────────────────────────────────────────────────────┐  │
+ │  │        python_snmp_collector (Docker Container)       │  │
+ │  │  - Delta Octet throughput calculation                 │  │
+ │  │  - SNMP timeout detection & DOWN state injection      │  │
+ │  └───────────────────────────┬───────────────────────────┘  │
+ │                              │ Line Protocol / Influx API    │
+ │                              ▼                              │
+ │  ┌───────────────────────────────────────────────────────┐  │
+ │  │             influxdb_nms (Port 18086/8086)            │  │
+ │  │  - Bucket: RouterMetrics                              │  │
+ │  └───────────────────────────┬───────────────────────────┘  │
+ │                              │ Flux Query Engine            │
+ │                              ▼                              │
+ │  ┌───────────────────────────────────────────────────────┐  │
+ │  │              grafana_nms (Port 3000)                  │  │
+ │  │  - CPU & RAM Gauges, Traffic Graphs, Health Stat Cards│  │
+ │  └───────────────────────────────────────────────────────┘  │
+ └─────────────────────────────────────────────────────────────┘
