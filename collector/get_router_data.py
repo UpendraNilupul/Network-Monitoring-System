@@ -1,12 +1,13 @@
+import os
 import time
 from pysnmp.hlapi import getCmd, SnmpEngine, CommunityData, UdpTransportTarget, ContextData, ObjectType, ObjectIdentity
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-INFLUX_URL = "http://localhost:8086"
-INFLUX_TOKEN = ""
-INFLUX_ORG = "University"
-INFLUX_BUCKET = "RouterMetrics"
+INFLUX_URL = os.getenv("INFLUX_URL", "http://localhost:8086")
+INFLUX_TOKEN = os.getenv("INFLUX_TOKEN", "my-super-secret-admin-token-123456789")
+INFLUX_ORG = os.getenv("INFLUX_ORG", "JaffnaUni")
+INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "RouterMetrics")
 
 client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
 write_api = client.write_api(write_options=SYNCHRONOUS)
@@ -17,11 +18,10 @@ prev_traffic = {}
 
 def get_snmp_data(ip, oid):
     try:
-        
         errorIndication, errorStatus, errorIndex, varBinds = next(
             getCmd(SnmpEngine(),
                    CommunityData(community),
-                   UdpTransportTarget((ip, 161), timeout=1, retries=0),
+                   UdpTransportTarget((ip, 161), timeout=2, retries=1),
                    ContextData(),
                    ObjectType(ObjectIdentity(oid)))
         )
@@ -31,7 +31,7 @@ def get_snmp_data(ip, oid):
     except Exception:
         return None
 
-print("Monitoring started... Press Ctrl+C to stop.")
+print("Dockerized Collector Started... Monitoring routers.")
 
 try:
     while True:
@@ -51,7 +51,6 @@ try:
             out_octets = get_snmp_data(ip, out_octets_oid)
             if_status = get_snmp_data(ip, status_oid)
 
-            # 1. ROUTER  ONLINE (UP)
             if cpu is not None and ram_used is not None and ram_free is not None:
                 total_ram = ram_used + ram_free
                 ram_percentage = round((ram_used / total_ram) * 100, 2)
@@ -77,25 +76,20 @@ try:
                     .field("interface_status", int(if_status if if_status is not None else 1))
 
                 write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
-                print(f"[{ip}] ONLINE -> CPU: {cpu}% | RAM: {ram_percentage}% | Status: UP")
-
-            # 2. ROUTER  OFFLINE (DOWN) 
+                print(f"[{ip}] UP -> CPU: {cpu}% | RAM: {ram_percentage}%")
             else:
-               
                 point = Point("router_metrics") \
                     .tag("router_ip", ip) \
                     .field("cpu_usage", 0.0) \
                     .field("ram_usage", 0.0) \
                     .field("download_mbps", 0.0) \
                     .field("upload_mbps", 0.0) \
-                    .field("interface_status", 2)  # 2 = DOWN
+                    .field("interface_status", 2)
 
                 write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
-                print(f"[{ip}] OFFLINE / DOWN -> Sent DOWN status (2) to DB")
+                print(f"[{ip}] DOWN -> Logged to DB")
 
-        print("--- Cycle completed. Waiting for next cycle... ---")
         time.sleep(5)
 
 except KeyboardInterrupt:
-    print("Monitoring stopped.")
     client.close()

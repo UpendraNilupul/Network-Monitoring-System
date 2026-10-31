@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+
+project-files/
+*.ghost
+*.nvram
+*.log
+*.txt
